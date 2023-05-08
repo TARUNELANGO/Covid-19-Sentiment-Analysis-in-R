@@ -1,0 +1,757 @@
+---
+title: "CSE3505-Review3"
+author: "TarunElango"
+date: "2022-11-14"
+output: html_document
+---
+
+#### Import necessary libraries
+```{r}
+# Libraries
+library(readr)        # reads in CSV
+library(ggplot2)      # plot library
+library(tidyverse)    # for data manipulation
+library(repr)         # resize graphs
+library(lubridate)    # for date and time
+library(VIM)          # missing values visual
+library(tidytext)
+library(stopwords)
+library(wordcloud)
+library(reshape2)
+library(scales)
+library(circlize)
+library(htmlwidgets)
+library(radarchart)
+library(tm)
+library(dplyr)
+library(wordcloud2)
+library(tidyr)
+library(RWeka)
+```
+# 
+```{r}
+options(repr.plot.width=15, repr.plot.height=7)
+
+# Custom Color Palette
+my_colors <- c("#05A4C0", "#85CEDA", "#D2A7D8", "#A67BC5", "#BB1C8B", "#8D266E")
+show_col(my_colors, labels = F, borders = NA)
+
+
+# Custom Theme Variable
+my_theme <- theme(plot.background = element_rect(fill = "grey98", color = "grey20"),
+                  panel.background = element_rect(fill = "grey98"),
+                  panel.grid.major = element_line(colour = "grey87"),
+                  text = element_text(color = "grey20"),
+                  plot.title = element_text(size = 22),
+                  plot.subtitle = element_text(size = 17),
+                  axis.title = element_text(size = 15),
+                  axis.text = element_text(size = 15),
+                  legend.box.background = element_rect(color = "grey20", fill = "grey98", size = 0.1),
+                  legend.box.margin = margin(t = 3, r = 3, b = 3, l = 3),
+                   legend.title = element_blank(),
+                  legend.text = element_text(size = 15),
+                  strip.text = element_text(size=17))
+```
+#### Print first few columns of all dataset to be used
+```{r}
+library(tidyverse)
+data <- read_csv("C:/Users/Tarun/Desktop/FDA J Component/covid-19-all.csv", show_col_types = FALSE)
+
+data <- data %>% rename(c("Country" = "Country/Region", "State" = "Province/State"))
+
+tweets <- read_csv("C:/Users/Tarun/Desktop/FDA J Component/covid19_tweets.csv", show_col_types = FALSE) 
+
+worldcities <- read_csv("C:/Users/Tarun/Desktop/FDA J Component/worldcitiespop.csv", show_col_types = FALSE)
+
+# Inspect data
+data %>% head(5)
+
+# Inspect tweet data
+tweets %>% head(5)
+
+worldcities %>% head(5)
+```
+
+#### Print the dimensions of the dataset
+```{r}
+print(dim(data))
+print(dim(tweets))
+print(dim(worldcities))
+```
+
+#### Print the cases where there is at least one NULL value.
+```{r}
+head(data[!complete.cases(data),], 5)
+head(tweets[!complete.cases(tweets),], 5)
+head(worldcities[!complete.cases(worldcities),], 5)
+```
+#### Number of rows containing at least one NULL value.
+```{r}
+sum(is.na(data))
+sum(is.na(tweets))
+sum(is.na(worldcities))
+```
+
+#### Statistical summary of the datasets.
+```{r}
+summary(data)
+summary(tweets)
+summary(worldcities)
+```
+
+#### Plot number of reported cases with time graph
+```{r}
+options(repr.plot.width = 25, repr.plot.height = 9)
+
+data %>%
+    select(Date, Confirmed, Recovered, Deaths) %>%
+    gather(key = group_var, value = "Cases", -Date, na.rm = TRUE) %>%
+    group_by(Date, group_var) %>%
+    summarise(n = sum(Cases)) %>% 
+
+    ggplot(aes(x = Date, y = n, color = group_var)) + 
+    geom_line(size = 1) +
+    scale_y_continuous(labels = scales::comma) +
+    scale_x_date(date_breaks = "months" , date_labels = "%b-%y") +
+    labs(title = "Reported Cases in Time", y = "Frequency")
+```
+
+#### Plot top countries against case type
+```{r}
+options(repr.plot.width = 40, repr.plot.height = 9)
+
+data %>%
+    select(Country, Confirmed, Recovered, Deaths) %>%
+    gather(key = group_var, value = "Cases", -Country, na.rm = TRUE) %>% #tidyr
+    group_by(Country, group_var) %>%
+    summarise(n = sum(Cases), .groups = "drop_last") %>%
+    arrange(desc(n)) %>% 
+    group_by(group_var) %>% 
+    slice(1:5) %>%
+
+    ggplot(aes(x = Country, y = n, fill=Country)) +
+    geom_bar(stat = "identity") +
+    facet_grid(~ group_var, scales = "free") +
+    scale_y_continuous(labels = scales::comma) +
+    geom_label(aes(label=round(n/1000000, 1)), size=2, fill="white") +
+    labs(title = "Top Countries per Case Type", subtitle = "Numbers in Millions")
+```
+
+#### Plot top states against case type
+```{r}
+options(repr.plot.width = 40, repr.plot.height = 9)
+
+data %>%
+    filter(State != c("NA", "Unknown")) %>%
+    select(State, Confirmed, Recovered, Deaths) %>%
+    gather(key = group_var, value = "Cases", -State, na.rm = TRUE) %>%
+    group_by(State, group_var) %>%
+    summarise(n = sum(Cases), .groups = "drop_last") %>%
+    arrange(desc(n)) %>%
+    group_by(group_var) %>% 
+    slice(1:5) %>%
+
+    ggplot(aes(x = State, y = n, fill = State)) +
+    geom_bar(stat = "identity") +
+    facet_grid(~ group_var, scales = "free") +
+    scale_y_continuous(labels = scales::comma) +
+    geom_label(aes(label=round(n/1000000, 1)), size=3, fill="white") +
+    labs(title = "Top States per Case Type", subtitle = "Numbers in Millions") 
+```
+
+#### Plot aggregate of data to be used using 'aggr' (Calculate or plot the amount of missing/imputed values in each variable and the amount of missing/imputed values in certain combinations of variables)
+```{r}
+aggr(data)
+aggr(tweets)
+aggr(worldcities)
+```
+
+# Text Preparation
+```{r}
+cleanCorpus <- function(text) {
+  # punctuation, whitespace, lowercase, numbers
+  text.tmp <- tm_map(text, removePunctuation)
+  text.tmp <- tm_map(text.tmp, stripWhitespace)
+  text.tmp <- tm_map(text.tmp, content_transformer(tolower))
+  text.tmp <- tm_map(text.tmp, removeNumbers)
+  
+  # removes stopwords
+  stopwords_remove <- c(stopwords("en"), c("thats","weve","hes","theres","ive","im",
+                                           "will","can","cant","dont","youve","us",
+                                           "youre","youll","theyre","whats","didnt"))
+  text.tmp <- tm_map(text.tmp, removeWords, stopwords_remove)
+  return(text.tmp)
+}
+```
+
+#### Create a function in order to tokenize text as unigrams, bigrams, and trigrams.
+```{r}
+# --- UNIGRAM ---
+frequentTerms <- function(text){
+  
+  # create the matrix
+  s.cor <- VCorpus(VectorSource(text))
+  s.cor.cl <- cleanCorpus(s.cor)
+  s.tdm <- TermDocumentMatrix(s.cor.cl)
+  s.tdm <- removeSparseTerms(s.tdm, 0.999)
+  m <- as.matrix(s.tdm)
+  word_freqs <- sort(rowSums(m), decreasing = T)
+  
+  # change to dataframe
+  dm <- data.frame(word=names(word_freqs), freq=word_freqs)
+  
+  return(dm)
+}
+
+
+# --- BIGRAM ---
+# Bigram tokenizer
+tokenizer_2 <- function(x){
+  NGramTokenizer(x, Weka_control(min=2, max=2))
+}
+
+# Bigram function 
+frequentBigrams <- function(text){
+
+  s.cor <- VCorpus(VectorSource(text))
+  s.cor.cl <- cleanCorpus(s.cor)
+  s.tdm <- TermDocumentMatrix(s.cor.cl, control=list(tokenize=tokenizer_2))
+  s.tdm <- removeSparseTerms(s.tdm, 0.999)
+  m <- as.matrix(s.tdm)
+  word_freqs <- sort(rowSums(m), decreasing=T)
+  dm <- data.frame(word=names(word_freqs), freq=word_freqs)
+  
+  return(dm)
+}
+
+
+# --- TRIGRAM ---
+# Trigram tokenizer
+tokenizer_3 <- function(x){
+  NGramTokenizer(x, Weka_control(min=3, max=3))
+}
+
+# Trigram function 
+frequentTrigrams <- function(text){
+
+  s.cor <- VCorpus(VectorSource(text))
+  s.cor.cl <- cleanCorpus(s.cor)
+  s.tdm <- TermDocumentMatrix(s.cor.cl, control=list(tokenize=tokenizer_3))
+  s.tdm <- removeSparseTerms(s.tdm, 0.999)
+  m <- as.matrix(s.tdm)
+  word_freqs <- sort(rowSums(m), decreasing=T)
+  dm <- data.frame(word=names(word_freqs), freq=word_freqs)
+  
+  return(dm)
+}
+```
+
+#### Import lexicons dataset.
+```{r}
+afinn <- read_csv("C:/Users/Tarun/Desktop/FDA J Component/Afinn.csv", show_col_types = FALSE)
+bing <- read_csv("C:/Users/Tarun/Desktop/FDA J Component/Bing.csv", show_col_types = FALSE)
+nrc <- read_csv("C:/Users/Tarun/Desktop/FDA J Component/NRC.csv", show_col_types = FALSE)
+```
+
+# Location Cleaning
+```{r}
+tweets_location <- tweets %>%
+                        # convert to lower case
+                        mutate(user_location = tolower(user_location)) %>%
+                        group_by(user_location) %>%
+                        summarise(n = n(), .groups = "drop_last") %>%
+                        arrange(desc(n))
+
+# Create a new column and fill it with NA
+tweets_location$country <- NA
+```
+
+```{r}
+tweets_location <- tweets_location %>%
+                        mutate(country = ifelse(grepl("india", user_location), "India", country),
+                               country = ifelse(grepl("delhi", user_location), "India", country),
+                               country = ifelse(grepl("mumbai", user_location), "India", country),
+                               country = ifelse(grepl("bengaluru", user_location), "India", country),
+                               country = ifelse(grepl("bangalore", user_location), "India", country),
+                               country = ifelse(grepl("bhubaneswar", user_location), "India", country),
+                               country = ifelse(grepl("hyderabad", user_location), "India", country),
+                               country = ifelse(grepl("china", user_location), "China", country),
+                               country = ifelse(grepl("beijing", user_location), "China", country),
+                               country = ifelse(grepl("hong kong", user_location), "Hong Kong", country),
+                               country = ifelse(grepl("singapore", user_location), "Singapore", country),
+                               country = ifelse(grepl("australia", user_location), "Australia", country),
+                               country = ifelse(grepl("melbourne", user_location), "Australia", country),
+                               country = ifelse(grepl("sydney", user_location), "Australia", country),
+                               country = ifelse(grepl("canada", user_location), "Canada", country),
+                               country = ifelse(grepl("africa", user_location), "Africa", country),
+                               country = ifelse(grepl("england", user_location), "UK", country),
+                               country = ifelse(grepl("united kingdom", user_location), "UK", country),
+                               country = ifelse(grepl("london", user_location), "UK", country),
+                               country = ifelse(grepl("uk", user_location), "UK", country),
+                               country = ifelse(grepl("united states", user_location), "US", country),
+                               country = ifelse(grepl("usa", user_location),"US", country),
+                               country = ifelse(grepl("us", user_location), "US", country),
+                               country = ifelse(grepl("washington", user_location), "US", country),
+                               country = ifelse(grepl("new york", user_location), "US", country),
+                               country = ifelse(grepl("angeles", user_location), "US", country),
+                               country = ifelse(grepl("atlanta", user_location), "US", country),
+                               country = ifelse(grepl("california", user_location), "US", country),
+                               country = ifelse(grepl("chicago", user_location), "US", country),
+                               country = ifelse(grepl("boston", user_location), "US", country),
+                               country = ifelse(grepl("philadelphia", user_location), "US", country),
+                               country = ifelse(grepl("diego", user_location), "US", country),
+                               country = ifelse(grepl("seattle", user_location), "US", country),
+                               country = ifelse(grepl("texas", user_location), "US", country),
+                               country = ifelse(grepl("nyc", user_location), "US", country),
+                               country = ifelse(grepl("vegas", user_location), "US", country),
+                               country = ifelse(grepl("francisco", user_location), "US", country),
+                               country = ifelse(grepl("florida", user_location), "US", country),
+                               country = ifelse(grepl("dallas", user_location), "US", country),
+                               country = ifelse(grepl("denver", user_location), "US", country),
+                               country = ifelse(grepl("worldwide", user_location), "NoCountry", country),
+                               country = ifelse(grepl("global", user_location), "NoCountry", country),
+                               country = ifelse(grepl("earth", user_location), "NoCountry", country),
+                               country = ifelse(grepl("everywhere", user_location), "NoCountry", country),
+                               country = ifelse(grepl("nigeria", user_location), "Nigeria", country),
+                               country = ifelse(grepl("kenya", user_location), "Kenya", country),
+                               country = ifelse(grepl("switzerland", user_location), "Switzerland", country),
+                               country = ifelse(grepl("ireland", user_location), "Ireland", country),
+                               country = ifelse(grepl("canada", user_location), "Canada", country),
+                               country = ifelse(grepl("toronto", user_location), "Canada", country),
+                               country = ifelse(grepl("philippines", user_location), "Philippines", country),
+                               country = ifelse(grepl("malaysia", user_location), "Malaysia", country),)
+```
+
+```{r}
+# US Cities
+us_cities <- worldcities %>%
+                filter(Country == "us") %>%
+                mutate(Country = "US") %>%
+                select(Country, City, AccentCity)
+
+# Cross locations with cities to extract the country
+tweets_location$flag_us <- purrr::map_df(tweets_location, ~ .x %in% us_cities$City)$user_location
+# Add the new `country` column
+tweets <- tweets %>%
+            left_join(tweets_location, by = "user_location") %>%
+            select(-c(n, flag_us))
+```
+
+#### Break the tweets into words to extract sentiment of the tweet.
+```{r}
+# Breaks the tweet into words on each row
+# in order to append the "sentiment" of the tweet
+unnest_tweets <- tweets %>% 
+    mutate(text = as.character(tweets$text)) %>% 
+    unnest_tokens(word, text)
+```
+
+#### Manually define stopwords in addition to 'en' stopwords.
+```{r}
+# Create a dataframe with stopwords
+stopwords_script <- tibble(word = c(stopwords("en"), c("thats","weve","hes","theres","ive","im",
+                                                           "will","can","cant","dont","youve","us",
+                                                           "youre","youll","theyre","whats","didnt", "just")))
+```
+
+# Date/Time feature engineering
+```{r}
+tweets <- tweets %>%
+            mutate(day_of_month = mday(date),
+                   month = month(date),
+                   season = ifelse(month %in% c(12, 1, 2), "Winter",
+                                   ifelse(month %in% c(3, 4, 5), "Spring", 
+                                          ifelse(month %in% c(6, 7, 8), "Summer", "Winter"))),
+                   )
+```
+
+# EDA on tweets
+```{r}
+options(repr.plot.width=15, repr.plot.height=9)
+
+tweets %>% 
+    select(date) %>% 
+    mutate(date = ymd_hms(date)) %>% 
+    group_by(date) %>% 
+    summarize(n = n(), .groups = "drop_last") %>%
+
+    ggplot(aes(x=date, y = n)) + 
+    geom_line(size = 1.5) +
+    coord_cartesian(clip = 'off') + theme(axis.title.x = element_blank()) +
+    labs(title = "Number of Tweets in Time", subtitle = "2020", y = "Frequency")
+```
+# User Location
+```{r}
+options(repr.plot.width=15, repr.plot.height=10)
+
+tweets %>%
+    group_by(country) %>%
+    summarise(n = n(), .groups = "drop_last") %>%
+    filter(country != "NA") %>%
+
+    ggplot(aes(x = reorder(country, n), y = n, fill=n)) +
+    geom_bar(stat = "identity") +
+    coord_flip() +
+    scale_fill_gradient(low=my_colors[2], high=my_colors[6], guide="none") +
+    geom_label(aes(label=n), size=5, fill="white") +
+    labs(title = "Countries Location for Tweets", subtitle = "--work in progress--") +      theme(axis.text.x = element_blank(),
+                     axis.title = element_blank())
+```
+#### Analyze user profile with respect to number of followers.
+```{r}
+options(repr.plot.width=15, repr.plot.height=9)
+labels <- c("user_favourites" = "No. Favourites", "user_followers" = "No. Followers", 
+            "user_friends" = "No. Friends")
+
+tweets %>%
+    select(user_followers, user_favourites, user_friends) %>%
+    gather(key = group_var, value = "Cases", na.rm = TRUE) %>%
+    
+    ggplot(aes(x = Cases)) +
+    geom_boxplot(aes(fill = group_var), outlier.fill = "grey35", outlier.shape = 18, 
+                 outlier.alpha = 0.1, outlier.size = 2) +
+    facet_grid(~ group_var, scales = "free", labeller = as_labeller(labels)) +
+    #scale_x_continuous(labels = comma) +
+    labs(title = "User Profile", subtitle = "Profile Size") + theme(axis.text.y = element_blank(),
+                     axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1),
+                     axis.title = element_blank())
+```
+# Sentiment Analysis
+```{r}
+options(repr.plot.width=30, repr.plot.height=30)
+
+unnest_tweets %>% 
+    inner_join(bing, by="word") %>%
+    count(word, sentiment, sort=T) %>% 
+    acast(word ~ sentiment, value.var = "n", fill=0) %>% 
+  
+    # wordcloud
+    comparison.cloud(max.words = 1000, title.size = 2,
+                  scale = c(1,.5))
+```
+# Primary Emotions Analysis
+```{r}
+options(repr.plot.width=15, repr.plot.height=9)
+
+# The plot:
+unnest_tweets %>% 
+    inner_join(nrc, "word") %>%
+    filter(!sentiment %in% c("positive", "negative")) %>% 
+    count(sentiment, sort=T) %>% 
+
+    ggplot(aes(x=reorder(sentiment, n), y=n)) +
+    geom_bar(stat="identity", aes(fill=n), show.legend=F) +
+    geom_label(aes(label=format(n, big.mark = ",")), size=5, fill="white") +
+    labs(x="Sentiment", y="Frequency", title="Overall Mood in Tweets") +
+    scale_fill_gradient(guide="none") +
+    coord_flip()
+```
+
+# Emotions by words
+```{r}
+options(repr.plot.width=15, repr.plot.height=9)
+
+unnest_tweets %>% 
+  inner_join(nrc, "word") %>% 
+  count(sentiment, word, sort=T) %>%
+  group_by(sentiment) %>% 
+  arrange(desc(n)) %>% 
+  slice(1:7) %>% 
+  
+  # Plot:
+  ggplot(aes(x=reorder(word, n), y=n)) +
+  geom_col(aes(fill=sentiment), show.legend = F) +
+  facet_wrap(~sentiment, scales = "free_y", nrow = 2, ncol = 5) +
+  coord_flip() +
+  labs(x="Word", y="Frequency", title="Sentiment split by most frequent words")
+```
+# Sentiment Distribution
+```{r}
+options(repr.plot.width=15, repr.plot.height=9)
+
+unnest_tweets %>% 
+  # Count how many word per value
+  inner_join(afinn, "word") %>% 
+  group_by(value) %>% 
+  count(value, sort=T)  %>% 
+  
+  # Plot
+  ggplot(aes(x=value, y=n)) +
+  geom_bar(stat="identity", show.legend = F, width = 0.5, fill = my_colors[1]) +
+  geom_label(aes(label=format(n, big.mark = ",")), size=5) +
+  scale_x_continuous(breaks=seq(-5, 5, 1)) +
+  labs(x="Score", y="Frequency", title="Word count distribution over intensity of sentiment: Neg - Pos") +
+  my_theme + theme(axis.text.y = element_blank())
+```
+# Chord Diagram
+```{r}
+# Filter only main 3 countries with most tweets
+data <- unnest_tweets %>%
+            filter(country %in% c("US", "UK", "India","NoCountry"))
+# Create totals dataframe for the 3 countries
+total_bing <- data %>% 
+    inner_join(bing, by="word") %>%
+    count(country) %>% 
+    group_by(country) %>% 
+    summarise(total_tweets = sum(n), .groups = "drop_last")
+
+# The table
+# total_bing
+```
+```{r}
+options(repr.plot.width=15, repr.plot.height=9)
+
+to_plot <- data %>% 
+    # get 'bing' and filter the data
+    inner_join(bing, by="word") %>%
+
+    # sum number of words per sentiment and country
+    count(sentiment, country) %>% 
+    group_by(country, sentiment) %>% 
+    summarise(sentiment_sum = sum(n), .groups = "drop_last") %>% 
+    inner_join(total_bing, by="country") %>% 
+    mutate(sentiment_perc = sentiment_sum/total_tweets) %>% 
+    select(country, sentiment, sentiment_perc)
+to_plot
+# The Chord Diagram  
+circos.clear()
+circos.par(gap.after=c(rep(2,length(unique(to_plot[[1]]))-1), 15,rep(2,length(unique(to_plot[[2]]))-1),15),gap.degree=2)
+myColors=c("India"=my_colors[3],"UK"=my_colors[4],"US"=my_colors[5], "NoCountry"=my_colors[2],"positive"="#D7DBDD","negative"="#D7DBDD")
+chordDiagram(to_plot,grid.col=myColors,transparency=0.2,annotationTrack=c("name", "grid"),annotationTrackHeight = c(0.03, 0.06))
+title("Relationship between Sentiment and Countries")
+```
+#Radar Chart
+```{r}
+# Filter only main 3 countries with most tweets
+data <- unnest_tweets %>%
+            filter(country %in% c("US", "UK", "India", "NoCountry"))
+# Table with countries, sentiment and word count
+char_sentiment <- data %>% 
+    inner_join(nrc, "word") %>% 
+    filter(!sentiment %in% c("positive", "negative")) %>% 
+    group_by(country, sentiment) %>% 
+    count(country, sentiment) %>% 
+    select(country, sentiment, char_sentiment_count=n)
+
+# Total Count of sentiments per countries
+total_char <- data %>% 
+    inner_join(nrc, "word") %>% 
+    filter(!sentiment %in% c("positive", "negative")) %>% 
+    count(country) %>% 
+    select(country, total=n)
+# Radar Chart:
+plt <- char_sentiment %>% 
+  inner_join(total_char, by="country") %>% 
+  mutate(percent = char_sentiment_count / total * 100 ) %>% 
+  select(-char_sentiment_count, -total) %>% 
+  spread(country, percent)  %>% 
+  chartJSRadar(showToolTipLabel = T, main="Countries Tweets and Emotion", maxScale=25, responsive=T,
+               addDots = T, 
+               colMatrix = grDevices::col2rgb(my_colors[c(3, 5, 4, 2)]),
+               lineAlpha = 0.7, polyAlpha = 0.2)
+saveWidget(plt, "plt.html")
+```
+#Words with the biggest contribution in sentiment
+```{r}
+options(repr.plot.width=15, repr.plot.height=9)
+unnest_tweets%>% 
+  # by word and value count number of occurences
+  inner_join(afinn, "word")%>% 
+  count(word, value, sort=T) %>% 
+  mutate(contribution = n * value,
+         sentiment = ifelse(contribution<=0, "Negative", "Positive")) %>% #another variable
+  arrange(desc(abs(contribution))) %>% 
+  head(20)  %>% 
+  
+  # plot
+  ggplot(aes(x=reorder(word, contribution), y=contribution, fill=sentiment)) +
+  geom_col(aes(fill=sentiment), show.legend = F) +
+  labs(x="Word", y="Contribution", title="Words with biggest contributions in positive/negative sentiments") +
+  coord_flip() +
+   scale_fill_manual(values=my_colors[c(3, 2)]) + 
+  my_theme
+```
+#Word Clouds
+```{r}
+wc_data<-frequentTerms(tweets$text)%>%filter(word!="covid")
+a<-wordcloud2(wc_data, size=1.6,minSize = 0.9,
+            color='random-light',backgroundColor="black",shape="diamond",
+            fontFamily="HersheySymbol")
+
+ #webshot::install_phantomjs()
+ saveWidget(a,"1.html",selfcontained = F)
+ webshot::webshot("1.html","1.png",vwidth = 1992, vheight = 1744, delay =10)
+```
+# Frequent Bigrams
+```{r}
+bigram <- frequentBigrams(tweets %>% 
+                            filter(country %in% c("US", "UK", "India", "NoCountry")) %>% 
+                            select(text) %>% 
+                            drop_na(text)) %>%
+                head(25)
+options(repr.plot.width=15, repr.plot.height=12)
+
+# Bigram plot
+bigram %>%
+  ggplot(aes(x=reorder(word, freq), y=freq)) +
+  geom_bar(stat="identity", aes(fill=freq), show.legend = F) +
+  geom_label(aes(label=freq), size=5) +
+  labs(title="Bigram: Most used set of 2 words") +
+  scale_fill_gradient(low = my_colors[3], high = my_colors[1], guide="none") +
+  my_theme + theme(axis.text.x = element_blank(), axis.title = element_blank()) +
+  coord_flip()
+```
+#Frequent Trigrams
+```{r}
+trigram <- frequentTrigrams(tweets %>% 
+                            filter(country %in% c("US", "UK", "India", "NoCountry")) %>% 
+                            select(text) %>% 
+                            drop_na(text)) %>%
+                head(25)
+options(repr.plot.width=15, repr.plot.height=12)
+
+# Trigram plot
+trigram %>%
+  ggplot(aes(x=reorder(word, freq), y=freq)) +
+  geom_bar(stat="identity", aes(fill=freq), show.legend = F) +
+  geom_label(aes(label=freq), size=5) +
+  labs(title="Trigram: Most used set of 3 words") +
+  scale_fill_gradient(low = my_colors[3], high = my_colors[1], guide="none") +
+  my_theme + theme(axis.text.x = element_blank(), axis.title = element_blank()) +
+  coord_flip()
+```
+
+# Libraries
+```{r}
+library(network)
+library(ndtv)
+library(splitstackshape)
+library(qgraph)
+library(igraph)
+```
+# Create dataframe
+```{r}
+bigram <- frequentBigrams(tweets %>% 
+                            filter(country %in% c("US", "UK", "India", "NoCountry")) %>% 
+                            select(text) %>% 
+                            drop_na(text)) %>%
+                cSplit("word", " ") %>%
+                mutate(word_1 = as.character(word_1),
+                       word_2 = as.character(word_2)) %>%
+                mutate(word_1 = ifelse(word_1=="case", "cases", word_1),
+                       word_2 = ifelse(word_2=="case", "cases", word_2)) %>%
+                filter(freq >= 5)
+
+# Rename and reorder columns (so we can make the graphs more easily)
+names(bigram) <- c("n", "item1", "item2")
+bigram <- bigram[ , c(2, 3, 1)]
+
+# Inspect data
+bigram %>% head()
+```
+# Distinct Item1
+```{r}
+sources <- bigram %>% 
+                distinct(item1) %>% 
+                rename(label = item1)
+
+# Distinct item2
+destinations <- bigram %>% 
+                    distinct(item2) %>% 
+                    rename(label = item2)
+```
+# ----- NODES AND EDGES -----
+```{r}
+# Unique Items + create unique ID
+nodes <- full_join(sources, destinations, by="label") %>% rowid_to_column("id")
+# Adds unique ID of Item 1 to data
+edges <- bigram %>% 
+            left_join(nodes, by = c("item1" = "label")) %>% 
+            rename(from = id)
+
+# Adds unique ID of Item 2 to data
+edges <- edges %>% 
+            left_join(nodes, by = c("item2" = "label")) %>% 
+            rename(to = id) %>% 
+            rename(weight = n)
+
+# Select only From | To | Weight (frequency)
+edges <- edges %>% select(from, to, weight)
+nodes %>% head(3)
+edges %>% head(3)
+```
+
+```{r}
+write.csv(nodes,"nodes.csv", row.names = FALSE)
+write.csv(edges,"edges.csv", row.names = FALSE)
+```
+# Create network
+```{r}
+net <- graph_from_data_frame(d = edges, vertices = nodes, directed = TRUE)
+net <- simplify(net, remove.multiple = F, remove.loops = T)
+options(repr.plot.width=16, repr.plot.height=16)
+set.seed(123)
+#change arrow size and edge color:
+E(net)$width <- E(net)$weight/5
+E(net)$arrow.size <- 0.8
+# Layout
+e <- get.edgelist(net, names=F)
+l <- qgraph.layout.fruchtermanreingold(e, vcount=vcount(net), niter = 90000)
+# Cluster colors
+colrs <- my_colors[2]
+
+plot(net, edge.curved=.3, layout = l,
+     vertex.size=11, vertex.color = colrs, vertex.frame.color=colrs,
+     vertex.label.color="black", vertex.label.font = 1, vertex.label.cex = 1.4, vertex.shape="circle",
+     vertex.label.dist = 0.3,
+     edge.color = "grey60", frame=T,
+     vertex.label=(V(net)$label),
+     mark.col = "grey96", mark.border="grey88")
+```
+```{r}
+# Create network
+net <- graph_from_data_frame(d = edges, vertices = nodes, directed = TRUE)
+net <- simplify(net, remove.multiple = F, remove.loops = T)
+# Community Detection
+clp <- cluster_optimal(net)
+V(net)$community <- clp$membership
+# ==== Create cluster list for the shaded area ====
+clusters <- data.frame(V(net)$community, V(net)$name) %>% 
+                 group_by(V.net..community) %>% 
+                 mutate(group = paste0(V.net..name, collapse = " ")) %>% 
+                 summarise(group2 = first(group))
+cluster_list <- clusters[["group2"]]
+# List instances
+final_list = list()
+ i <- 1
+ for (group in cluster_list){
+     numbers <- str_split(group, pattern = " ")
+     final_list[i] <- numbers
+     i <- i+1
+ }
+```
+```{r}
+set.seed(123)
+
+png("Igraph.png", height=16, width=16, units="in", res=250)
+
+#change arrow size and edge color:
+ E(net)$width <- E(net)$weight/5
+ E(net)$arrow.size <- 0.8
+
+# Layout
+ e <- get.edgelist(net, names=F)
+ l <- qgraph.layout.fruchtermanreingold(e, vcount=vcount(net), niter = 90000)
+
+ # Cluster colors
+ colrs <- adjustcolor( c(my_colors, "yellowgreen", "yellowgreen", "lightblue", "lightblue",
+                         "lightgreen", "maroon", "#86C1B2", '#86C1B2'), alpha=.9)
+
+ plot(net, edge.curved=.3, layout = l,
+      vertex.color = colrs[V(net)$community], vertex.frame.color=colrs[V(net)$community], vertex.size=11,
+      vertex.label.color="black", vertex.label.font = 1, vertex.label.cex = 1.4, vertex.shape="circle", 
+      vertex.label.dist = 0.3, 
+      edge.color = "grey60", frame=T,
+      vertex.label=(V(net)$label),
+      mark.groups = final_list, mark.col = "grey96", mark.border="grey88")
+```
