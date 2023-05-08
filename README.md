@@ -1,21 +1,21 @@
 # Covid-19-Sentiment-Analysis-in-R
 A classification model to predict the sentiment of Covid-19 tweets. The tweets have been pulled from Twitter and manual tagging has been done. Information like Location, Tweet At, Original Tweet, and Sentiment are given.
 
-##Objective:
+## Objective:
 To obtain insights from textual data focused on COVID-19. The code involves a sentiment and network analysis of data specific to COVID-19 using R. 
 Since there is no specific dataset for this part, I use data from multiple sources including Bing, COVID19 Daily Updates, etc. 
 To visualize the primary emotions in the data (trust, fear, anticipation, etc.). 
 To have as many visualizations as possible in order to understand the data better. 
 Social Network analysis would help visualize the pattern between most frequent set of words with the help of graphs and networks
 
-##Methodology:
+## Methodology:
 An analytical approach to apply multiple visualizations like bar chart, wordclouds, etc. depicting various patterns and hidden information behind the data. 
 This also helps to analyse primary emotions within the tweets and identify trends between various attributes spread across the datasets. 
 Wordclouds also help to analyse positive and negative words in the tweets further strengthing our analysis. 
 This is a lexicon based approach, hence, it relies on manually defining stop words, etc used to clean the dataset to remove ambiguity at multiple instances. 
 Also the fundamental concept of tokenization of text into unigrams, bigrams or trigrams would make handling and analysis easier and efficient.
 
-##Algorithms Used:
+## Algorithms Used:
 -> Rule/Lexicon based approach
 -> Keyword Stopping
 
@@ -41,7 +41,7 @@ Thus, the system performance is enhanced by the keyword recovery algorithm for b
 7. Perform social network analysis to visualize the connection between the most frequent combination of words with the help of graphs and networks.
 8. Draw conclusions from obtained results 
 
-##Parameters:
+## Parameters:
 Confirm: Number of confirmed covid cases
 Recovered: Number of recovered cases
 Death: Number of deaths
