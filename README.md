@@ -52,3 +52,5 @@ User followers: Number of followers of the user who posted the tweet
 User favorites: Number of favorites user had at the time of posting
 User friends: Number of friends user had at the time of posting
 
+## Link
+https://www.kaggle.com/code/andradaolteanu/covid-19-sentiment-analysis-social-networks
