@@ -1,56 +1,81 @@
-# Covid-19-Sentiment-Analysis-in-R
-A classification model to predict the sentiment of Covid-19 tweets. The tweets have been pulled from Twitter and manual tagging has been done. Information like Location, Tweet At, Original Tweet, and Sentiment are given.
+# 🦠 Covid-19 Sentiment Analysis in R  
+_A classification model to predict the sentiment of Covid-19 tweets using R_
 
-## Objective:
-To obtain insights from textual data focused on COVID-19. The code involves a sentiment and network analysis of data specific to COVID-19 using R. 
-Since there is no specific dataset for this part, I use data from multiple sources including Bing, COVID19 Daily Updates, etc. 
-To visualize the primary emotions in the data (trust, fear, anticipation, etc.). 
-To have as many visualizations as possible in order to understand the data better. 
-Social Network analysis would help visualize the pattern between most frequent set of words with the help of graphs and networks
+---
 
-## Methodology:
-An analytical approach to apply multiple visualizations like bar chart, wordclouds, etc. depicting various patterns and hidden information behind the data. 
-This also helps to analyse primary emotions within the tweets and identify trends between various attributes spread across the datasets. 
-Wordclouds also help to analyse positive and negative words in the tweets further strengthing our analysis. 
-This is a lexicon based approach, hence, it relies on manually defining stop words, etc used to clean the dataset to remove ambiguity at multiple instances. 
-Also the fundamental concept of tokenization of text into unigrams, bigrams or trigrams would make handling and analysis easier and efficient.
+## 🎯 Project Objective
 
-## Algorithms Used:
--> Rule/Lexicon based approach
--> Keyword Stopping
+- 📈 Gain insights from COVID-19-related textual data.
+- 🧠 Perform sentiment and network analysis on the tweets.
+- 💬 Visualize primary emotions like **trust**, **fear**, **anticipation**, etc.
+- 📊 Create multiple visualizations to better understand user sentiments.
+- 🌐 Use **Social Network Analysis** to display relationships among frequently used words via graphs.
 
--> Rule/Lexicon based Approach:  This method uses manually created data classification rules to ascertain sentiment. 
-This method determines a score by using dictionaries of words with positive or negative values to indicate their polarity and sentiment strength. 
-Expressions can also be used to create more functionality. By creating even better rules, rule-based sentiment analysis algorithms can be modified according to context.
-How it works? It counts the amount of words in the given text that are both positive and negative. 
-It will return a positive sentiment if there are more positives than negatives. It will give a neutral response if both are equal. 
+---
 
--> Keyword Stopping: Keyword spotting is one of the simplest and most straightforward techniques and widely used by Sentiment Analysis algorithms. 
-The input text is thoroughly scanned for the prominent positive and negative words like “sad”, “happy”, “disappoint”, “great”, “satisfied”, and such.
-Keyword spotting system detection performance degrades when substitution errors occur during the keyword recognition. 
-Therefore, a keyword recovery algorithm was developed to reduce the detection degradation to a low false alarm rate to recover keywords after rejecting acoustic noise. 
-Tests show that the detection performance improves from 78.1% to 85.3% for a false alarm rate of 10% with the upper range of the detection performance improved from 85.0% to 92.0%. 
-Thus, the system performance is enhanced by the keyword recovery algorithm for both the average and maximum detection performance.
+## 📂 Dataset Source
 
-1. Read and explore data in order to find any anomalies 
-2. Prepare data for the forthcoming task- this step would involve data manipulation and cleaning
-3. Clean the textual data- remove punctuations, extra white space, stopwords, etc.
-4. Create N-grams from textual data to enable easier processing.
-5. Use lexicon to predict the sentiments of words through semantic orientation.
-6. Analyse primary emotions in the data and create word clouds to predict the sentiment.
-7. Perform social network analysis to visualize the connection between the most frequent combination of words with the help of graphs and networks.
-8. Draw conclusions from obtained results 
+🔗 [Kaggle Dataset Input](https://www.kaggle.com/code/andradaolteanu/covid-19-sentiment-analysis-social-networks/input)  
+📚 Data includes information from Bing, COVID-19 Daily Updates, etc.
 
-## Parameters:
-Confirm: Number of confirmed covid cases
-Recovered: Number of recovered cases
-Death: Number of deaths
-User Location: The location of the user when the tweet was posted
-Text: The actual tweet posted by the user
-Date: Date when tweet was posted
-User followers: Number of followers of the user who posted the tweet
-User favorites: Number of favorites user had at the time of posting
-User friends: Number of friends user had at the time of posting
+---
 
-## Link
-https://www.kaggle.com/code/andradaolteanu/covid-19-sentiment-analysis-social-networks
+## 🧪 Methodology
+
+- 📊 Use of **bar charts**, **word clouds**, and other visual tools to depict hidden patterns.
+- 🔍 Analyze **positive and negative** keywords to strengthen sentiment prediction.
+- 🧹 Apply lexicon-based approach — cleaning using stopwords, punctuation removal, etc.
+- 📚 Tokenize text into **unigrams**, **bigrams**, and **trigrams** for efficient processing.
+
+---
+
+## 🧠 Algorithms Used
+
+### 🧾 Rule / Lexicon-Based Approach
+- ✅ Relies on dictionaries of **positive** and **negative** words.
+- ⚖️ Calculates sentiment scores based on word polarity.
+- 🔧 Can be customized using expressions and contextual rules.
+
+### 🔑 Keyword Spotting
+- 🔎 Scans text for sentiment-specific keywords like *happy*, *sad*, *disappointed*, etc.
+- 🎯 Employs a **keyword recovery algorithm** to reduce noise and false alarms.
+- 📈 Detection accuracy improved from **78.1% → 85.3%** at 10% false alarm rate.
+
+---
+
+## ⚙️ Workflow
+
+1. 📥 Import and explore the dataset
+2. 🧼 Clean and prepare the textual data
+3. ✂️ Remove stopwords, punctuation, and whitespace
+4. 🧩 Tokenize text into n-grams
+5. 📘 Apply lexicons for sentiment prediction
+6. 🎨 Generate word clouds to visualize sentiment and emotion
+7. 🔗 Perform **social network analysis** on co-occurring words
+8. 📌 Draw conclusions from visual and analytical results
+
+---
+
+## 📊 Key Parameters
+
+| Parameter         | Description                                  |
+|-------------------|----------------------------------------------|
+| 🦠 Confirm         | Number of confirmed COVID-19 cases            |
+| 💚 Recovered       | Number of recovered patients                  |
+| ⚰️ Death           | Number of deaths                              |
+| 📍 User Location   | User’s location during tweet posting         |
+| 📝 Text            | The actual tweet text                         |
+| 📅 Date            | Date when tweet was posted                    |
+| 👥 User Followers  | Follower count of the user                    |
+| ❤️ User Favorites  | Favorites the user had at time of tweet       |
+| 🤝 User Friends    | Friend count of the user                      |
+
+---
+
+## 📁 Additional CSVs for Analysis
+
+- 📄 [covid19_tweets.csv](https://drive.google.com/file/d/1UypbFGcjSquTZdMCa9VhYkre6aDCgfdp/view?usp=share_link)  
+- 📄 [covid-19-all.csv](https://drive.google.com/file/d/17k-cfBqZUcgecPm5m829LLz3npVddzKw/view?usp=share_link)  
+- 📄 [worldcitiespop.csv](https://drive.google.com/file/d/1CvMg2ICE2tB3ZDziCwLaZiGgHJIHszWa/view?usp=share_link)
+
+---
